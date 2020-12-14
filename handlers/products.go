@@ -19,18 +19,36 @@ func NewProducts(l *log.Logger) *Products {
 // ServeHTTP contains HTTP processing logic
 func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		p.GetProducts(rw, r)
+		p.getProducts(rw, r)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		p.addProduct(rw, r)
 		return
 	}
 	//catch all
 	rw.WriteHeader(http.StatusMethodNotAllowed)
 }
 
-// GetProducts lists the products
-func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
+// getProducts lists the products
+func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
+	p.l.Println("Handle GET Products")
 	lp := data.GetProducts()
 	err := lp.ToJSON(rw)
 	if err != nil {
 		http.Error(rw, "Can't marshal JSON", http.StatusInternalServerError)
 	}
+}
+
+// addProduct adds a product to the product db
+func (p *Products) addProduct(rw http.ResponseWriter, r *http.Request) {
+	p.l.Println("Handle POST Product")
+	prod := &data.Product{}
+	err := prod.FromJSON(r.Body)
+	if err != nil {
+		http.Error(rw, "Unable to unmarshal JSON", http.StatusBadRequest)
+	}
+	p.l.Printf("Product: %#v", prod)
+	data.AddProduct(prod)
 }
