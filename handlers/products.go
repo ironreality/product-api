@@ -4,8 +4,9 @@ import (
 	"log"
 	"net/http"
 	"product-api/data"
-	"regexp"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 // Products is a handler for our coffee shop's products
@@ -18,53 +19,8 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
-// ServeHTTP contains HTTP processing logic
-func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		p.getProducts(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		p.addProduct(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPut {
-		p.l.Println("PUT", r.URL.Path)
-		rg := regexp.MustCompile(`/([0-9]+)`)
-		g := rg.FindAllStringSubmatch(r.URL.Path, -1)
-		//p.l.Printf("Captured strings: %#v\n", g)
-
-		if len(g) != 1 {
-			p.l.Println("Error: more than one string captured!")
-			http.Error(rw, "Invalid URI", http.StatusBadRequest)
-			return
-		}
-
-		if len(g[0]) != 2 {
-			p.l.Println("Error: more than one capture group captured!")
-			http.Error(rw, "Invalid URI", http.StatusBadRequest)
-			return
-		}
-
-		idString := g[0][1]
-		id, err := strconv.Atoi(idString)
-		if err != nil {
-			http.Error(rw, "Invalid URI", http.StatusBadRequest)
-			return
-		}
-
-		p.l.Println("Got id:", id)
-		p.updateProduct(id, rw, r)
-		return
-	}
-	//catch all
-	rw.WriteHeader(http.StatusMethodNotAllowed)
-}
-
-// getProducts lists the products
-func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
+// GetProducts lists the products
+func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products")
 	lp := data.GetProducts()
 	err := lp.ToJSON(rw)
@@ -73,10 +29,20 @@ func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Products) updateProduct(id int, rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle PUT Product")
+// UpdateProduct replaces a product with a new one
+func (p *Products) UpdateProduct(rw http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(rw, "Unable convert id to integer number", http.StatusBadRequest)
+		return
+	}
+
+	p.l.Println("Handle PUT Product", id)
+
 	prod := &data.Product{}
-	err := prod.FromJSON(r.Body)
+	err = prod.FromJSON(r.Body)
 	if err != nil {
 		http.Error(rw, "Unable to unmarshal JSON", http.StatusBadRequest)
 	}
@@ -94,8 +60,8 @@ func (p *Products) updateProduct(id int, rw http.ResponseWriter, r *http.Request
 	}
 }
 
-// addProduct adds a product to the product db
-func (p *Products) addProduct(rw http.ResponseWriter, r *http.Request) {
+// AddProduct adds a product to the product db
+func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST Product")
 	prod := &data.Product{}
 	err := prod.FromJSON(r.Body)
